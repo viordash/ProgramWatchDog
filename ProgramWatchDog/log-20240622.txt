@@ -1,0 +1,7 @@
+2024-06-22 12:31:37.583 +03:00 [ERR] Connection failed
+2024-06-22 12:33:15.057 +03:00 [ERR] Connection failed
+2024-06-22 12:33:41.114 +03:00 [ERR] Connection failed
+2024-06-22 12:34:07.142 +03:00 [ERR] Connection failed
+2024-06-22 12:34:33.174 +03:00 [ERR] Connection failed
+2024-06-22 12:34:59.207 +03:00 [ERR] Connection failed
+2024-06-22 12:35:25.252 +03:00 [ERR] Connection failed
