@@ -61,17 +61,13 @@ static void PrintLog(const _TCHAR* AText, _TCHAR* AParamStr, BOOL AWithDelimeter
 }
 
 static BOOL AppIsResponding(void) noexcept {
-	//#define TIMEOUT 50
 	DWORD_PTR Res;
 	HWND handle;
 
 	handle = (HWND)MainWindow;
 	if((handle != 0) && (handle != INVALID_HANDLE_VALUE)) {
-		//   return (!IsHungAppWindow(handle));
-		return (SendMessageTimeout(handle, /*WM_USER*/WM_NULL, 0, 0, /*SMTO_NORMAL |*/ SMTO_ABORTIFHUNG, RESPOND_TIMEOUT, &Res) != 0);
+		return (SendMessageTimeout(handle, WM_NULL, 0, 0, SMTO_ABORTIFHUNG, RESPOND_TIMEOUT, &Res) != 0);
 	} else {
-
-		//  PrintLog(L"%s not found!\r\n", lpClassName, FALSE);
 		return(FALSE);
 	}
 }
@@ -188,12 +184,6 @@ static void WriteBufToFile(FILE* f, PCHAR_INFO buf, COORD bsize, SMALL_RECT* siz
 			fputc(buf[X + (Y * bsize.X)].Char.AsciiChar, f);
 		fputc('\n', f);
 	}
-	//int i,j;
-//for (i = size->Top; i <= size->Bottom; i++) 	{
-//	for( j = size->Left; j <= size->Right; j++)
-//		fputc (buf[i * bsize.X + j].Char.AsciiChar, f);			
-//	fputc( '\n', f );
-//}
 }
 
 
@@ -231,8 +221,6 @@ BOOL ConsoleToFile() {
 		swprintf(pBuffer, 20, L"WDG_%04d%02d%02d_%02d%02d%02d", SystemTime.wYear, SystemTime.wMonth, SystemTime.wDay, SystemTime.wHour,
 			SystemTime.wMinute, SystemTime.wMinute);
 		wcscat(&LogFileName[0], L".log");
-		//  *(pBuffer) = 0;
-	   //	 wcscat(&LogFileName[0], L"20121225_120606.log");
 		if(f = _wfopen(&LogFileName[0], L"wt")) {
 			wnd = cinfo.srWindow;
 			if(ReadConsoleOutput(hRead, buf, bcoord, bpos, &wnd)) {
@@ -273,7 +261,6 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	_TCHAR* pBuffer;
 	INT i, NotRespondCounter, TerminateCount;
 
-	//	wprintf(L"Наблюдение за работоспособностью программы. (c)viordash\r\n"); 
 	wprintf(L"Program work watching. (c)viordash 2012. viordash@mail.ru\r\n");
 	wprintf(L"\r\n");
 	Sleep(20);
