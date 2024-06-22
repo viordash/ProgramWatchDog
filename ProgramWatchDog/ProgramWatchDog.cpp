@@ -33,6 +33,11 @@ C:\PROJECTS\TEST\ProgramWatchDog.exe "C:\PROJECTS\TEST\TestAppl.exe"
 #include <psapi.h>
 #pragma comment( lib, "psapi.lib" )
 
+#pragma warning(disable: 28159)
+#pragma warning(disable: 26481)
+#pragma warning(disable: 26493)
+#pragma warning(disable: 26408)
+
 #define RESPOND_TIMEOUT (7000 - 4000)
 
 typedef struct _TWindowFind {
@@ -43,25 +48,24 @@ typedef struct _TWindowFind {
 HANDLE MainWindow;
 _TCHAR arg_0[MAX_PATH];
 
-static void PrintLog(const _TCHAR* AText, _TCHAR* AParamStr, BOOL AWithDelimeter) {
-	_TCHAR Buffer[256];
+static void PrintLog(const _TCHAR* AText, _TCHAR* AParamStr, BOOL AWithDelimeter) noexcept {
+	_TCHAR Buffer[MAX_PATH];
 	SYSTEMTIME SystemTime;
 	GetLocalTime(&SystemTime);
 	if(AWithDelimeter) {
-		swprintf(Buffer, 256, L"--------%02d.%02d.%04d---------\r\n", SystemTime.wDay, SystemTime.wMonth, SystemTime.wYear);
-		wprintf(Buffer, AParamStr);
+		swprintf(&Buffer[0], MAX_PATH, L"--------%02d.%02d.%04d---------\r\n", SystemTime.wDay, SystemTime.wMonth, SystemTime.wYear);
+		wprintf(&Buffer[0], AParamStr);
 	}
-	swprintf(Buffer, 256, L"%02d:%02d:%02d.%03d \t %s", SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond, SystemTime.wMilliseconds, AText);
-
-	wprintf(Buffer, AParamStr);
+	swprintf(&Buffer[0], MAX_PATH, L"%02d:%02d:%02d.%03d \t %s", SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond, SystemTime.wMilliseconds, AText);
+	wprintf(&Buffer[0], AParamStr);
 }
 
-BOOL AppIsResponding(void) {
+static BOOL AppIsResponding(void) noexcept {
 	//#define TIMEOUT 50
 	DWORD_PTR Res;
 	HWND handle;
 
-	handle = (HWND)MainWindow;//FindWindow((LPCTSTR)lpClassName, NULL);
+	handle = (HWND)MainWindow;
 	if((handle != 0) && (handle != INVALID_HANDLE_VALUE)) {
 		//   return (!IsHungAppWindow(handle));
 		return (SendMessageTimeout(handle, /*WM_USER*/WM_NULL, 0, 0, /*SMTO_NORMAL |*/ SMTO_ABORTIFHUNG, RESPOND_TIMEOUT, &Res) != 0);
@@ -73,10 +77,10 @@ BOOL AppIsResponding(void) {
 }
 
 
-BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam) {
+static BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam) noexcept {
 	if(IsWindow(hWnd) && !((PTWindowFind)lParam)->IsFound) {
 		DWORD pid;
-		DWORD dwTheardId = GetWindowThreadProcessId(hWnd, &pid);
+		const DWORD dwTheardId = GetWindowThreadProcessId(hWnd, &pid);
 		if(pid == ((PTWindowFind)lParam)->ProcessID) {
 			MainWindow = hWnd;
 			((PTWindowFind)lParam)->IsFound = TRUE;
@@ -87,7 +91,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hWnd, LPARAM lParam) {
 
 
 static DWORD procs[0x1000]; //массив для хранения дескрипторов процессов
-static BOOL AppIsExist(_TCHAR* lpExeName, BOOL IsTerminate) {
+static BOOL AppIsExist(const _TCHAR* lpExeName, BOOL IsTerminate) noexcept {
 	HANDLE ph;
 	INT i;
 	DWORD count, cm; //количество процессов
@@ -95,7 +99,7 @@ static BOOL AppIsExist(_TCHAR* lpExeName, BOOL IsTerminate) {
 	_TCHAR ModName[MAX_PATH]; //имя модуля
 	TWindowFind WindowFind;
 
-	if(EnumProcesses(procs, sizeof(procs), &count) != 0) {
+	if(EnumProcesses(&procs[0], sizeof(procs), &count) != 0) {
 		for(i = 0; i < count / sizeof(DWORD); ++i) {
 			WindowFind.IsFound = FALSE;
 			MainWindow = INVALID_HANDLE_VALUE;
@@ -104,16 +108,16 @@ static BOOL AppIsExist(_TCHAR* lpExeName, BOOL IsTerminate) {
 				continue;
 			}
 			if(!EnumProcessModules(ph, &mh, sizeof(mh), &cm)) {
-				DWORD dw = GetLastError();
+				const DWORD dw = GetLastError();
 				CloseHandle(ph);
 			}
-			if(GetModuleFileNameEx(ph, mh, ModName, sizeof(ModName) / sizeof(ModName[0])) <= 0) {
-				DWORD dw = GetLastError();
+			if(GetModuleFileNameEx(ph, mh, &ModName[0], sizeof(ModName) / sizeof(ModName[0])) <= 0) {
+				const DWORD dw = GetLastError();
 				CloseHandle(ph);
 				continue;
 			}
 
-			if(wcscmp(lpExeName, ModName) == 0) {
+			if(wcscmp(lpExeName, &ModName[0]) == 0) {
 				if(!IsTerminate) {
 					WindowFind.IsFound = FALSE;
 					WindowFind.ProcessID = GetProcessId(ph);
@@ -131,20 +135,23 @@ static BOOL AppIsExist(_TCHAR* lpExeName, BOOL IsTerminate) {
 	return (FALSE);
 }
 
-BOOL RunProgram(_TCHAR* lpExeName, _TCHAR* lpCommandLine) {
+static BOOL RunProgram(_TCHAR* lpExeName, _TCHAR* lpCommandLine) noexcept {
 	_TCHAR ExeCommandLine[MAX_PATH];
 	STARTUPINFO si;
 	PROCESS_INFORMATION pi;
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
 	ZeroMemory(&pi, sizeof(pi));
-	wsprintf(ExeCommandLine, L"%s%s", lpExeName, lpCommandLine);
-	return(CreateProcess(NULL, ExeCommandLine, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi));
-	// ShellExecute(NULL, (LPCTSTR)"open", (LPCTSTR)lpExeName, NULL, NULL, SW_SHOWNORMAL); 	 
+	wsprintf(&ExeCommandLine[0], L"%s%s", lpExeName, lpCommandLine);
+	const BOOL res = CreateProcess(NULL, &ExeCommandLine[0], NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
+	if(res) {
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+	}
+	return res;
 }
 
-
-BOOL SetPrivilege(BOOL enable) {
+static BOOL SetPrivilege(BOOL enable) noexcept {
 	BOOL res;
 	TOKEN_PRIVILEGES tpPrev, tkp;
 	HANDLE hToken;
@@ -163,16 +170,18 @@ BOOL SetPrivilege(BOOL enable) {
 	return(res);
 }
 
-BOOL RebootOS(void) {
+static BOOL RebootOS(_TCHAR* lpExeName) noexcept {
 	if(SetPrivilege(TRUE)) {
-		ExitWindowsEx(EWX_REBOOT | EWX_FORCE, 0);
+		_TCHAR msg[MAX_PATH];
+		wsprintf(&msg[0], L"System reboot due to program '%s' freezing", lpExeName);
+		InitiateSystemShutdownEx(NULL, &msg[0], 10, TRUE, TRUE, SHTDN_REASON_MAJOR_SOFTWARE);
 		SetPrivilege(FALSE);
 		return(TRUE);
 	} else return(FALSE);
 }
 
 
-void WriteBufToFile(FILE* f, PCHAR_INFO buf, COORD bsize, SMALL_RECT* size) {
+static void WriteBufToFile(FILE* f, PCHAR_INFO buf, COORD bsize, SMALL_RECT* size) noexcept {
 	int X, Y;
 	for(Y = 0; Y < bsize.Y; Y++) {
 		for(X = 0; X < bsize.X; X++)
@@ -210,27 +219,28 @@ BOOL ConsoleToFile() {
 	bcoord.Y = cinfo.srWindow.Bottom - cinfo.srWindow.Top + 1;
 
 	if(buf = (PCHAR_INFO)malloc(bcoord.X * bcoord.Y * sizeof(CHAR_INFO))) {
-		wcscpy(LogFileName, arg_0);
-		pBuffer = wcsrchr(LogFileName, '\\');
+		wcscpy(&LogFileName[0], &arg_0[0]);
+		pBuffer = wcsrchr(&LogFileName[0], '\\');
 		pBuffer++;
 		//	pBuffer = 0;	
 		wcscpy(pBuffer, L"Log\\");
 		pBuffer += wcslen(L"Log\\");
-		_wmkdir(LogFileName);
+		if(_wmkdir(&LogFileName[0]) != 0) {
+		}
 		GetLocalTime(&SystemTime);
 		swprintf(pBuffer, 20, L"WDG_%04d%02d%02d_%02d%02d%02d", SystemTime.wYear, SystemTime.wMonth, SystemTime.wDay, SystemTime.wHour,
 			SystemTime.wMinute, SystemTime.wMinute);
-		wcscat(LogFileName, L".log");
+		wcscat(&LogFileName[0], L".log");
 		//  *(pBuffer) = 0;
-	   //	 wcscat(LogFileName, L"20121225_120606.log");
-		if(f = _wfopen(LogFileName, L"wt")) {
+	   //	 wcscat(&LogFileName[0], L"20121225_120606.log");
+		if(f = _wfopen(&LogFileName[0], L"wt")) {
 			wnd = cinfo.srWindow;
 			if(ReadConsoleOutput(hRead, buf, bcoord, bpos, &wnd)) {
 				WriteBufToFile(f, buf, bcoord, &wnd);
 				res = TRUE;
 			}
+			fclose(f);
 		}
-		fclose(f);
 		free(buf);
 	}
 	return (res);
@@ -269,8 +279,8 @@ int _tmain(int argc, _TCHAR* argv[]) {
 	Sleep(20);
 
 	if((argc < 2) || ((pBuffer = wcsrchr(argv[1], '\\')) == NULL)) {
-		wcscpy(ExeFullName, argv[0]);
-		pBuffer = wcsrchr(ExeFullName, '\\');
+		wcscpy(&ExeFullName[0], argv[0]);
+		pBuffer = wcsrchr(&ExeFullName[0], '\\');
 		pBuffer++;
 		wprintf(L"Use:  %s <full path of watching program>\r\n", pBuffer);
 		wprintf(L"\r\n");
@@ -278,28 +288,28 @@ int _tmain(int argc, _TCHAR* argv[]) {
 		Sleep(20);
 		while(!_getwch()) Sleep(100);
 		return 0;
-	} else wcscpy(ExeFullName, argv[1]);
+	} else wcscpy(&ExeFullName[0], argv[1]);
 	ExeCommandLine[0] = 0;
 	for(i = 2; i < argc; i++) {
-		wsprintf(ExeCommandLine, L"%s %s", ExeCommandLine, argv[i]);
+		wsprintf(&ExeCommandLine[0], L"%s %s", &ExeCommandLine[0], argv[i]);
 	}
 
-	wcscpy(ExeName, pBuffer + 1);
-	wcscpy(arg_0, argv[0]);
-	wprintf(arg_0);
+	wcscpy(&ExeName[0], pBuffer + 1);
+	wcscpy(&arg_0[0], argv[0]);
+	wprintf(&arg_0[0]);
 	wprintf(L"\r\n");
 	wprintf(L"\r\n");
 
 	SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE);
-	PrintLog(L"Watching start [%s]...\r\n", ExeName, TRUE);
+	PrintLog(L"Watching start [%s]...\r\n", &ExeName[0], TRUE);
 	Sleep(15000);
 	MainWindow = INVALID_HANDLE_VALUE;
 	TerminateCount = 0;
 	while(TRUE) {
 		Sleep(100);
-		if(!AppIsExist(ExeFullName, FALSE)) {
+		if(!AppIsExist(&ExeFullName[0], FALSE)) {
 			PrintLog(L"Not run! Try execute...\r\n", NULL, FALSE);
-			RunProgram(ExeFullName, ExeCommandLine);
+			RunProgram(&ExeFullName[0], &ExeCommandLine[0]);
 			Sleep(10000);
 			continue;
 		} else PrintLog(L"Is run. Check respond...\r\n", NULL, FALSE);
@@ -330,7 +340,7 @@ int _tmain(int argc, _TCHAR* argv[]) {
 				if(!Beep(1500, 350)) Sleep(350);
 				_putwch(L'*');
 				if(NotRespondCounter % 5 == 0) {
-					if(!AppIsExist(ExeFullName, FALSE)) {
+					if(!AppIsExist(&ExeFullName[0], FALSE)) {
 						NotRespondCounter += 3;
 					}
 				}
@@ -338,13 +348,13 @@ int _tmain(int argc, _TCHAR* argv[]) {
 		}
 		wprintf(L"\r\n");
 		PrintLog(L"No response. Terminate...\r\n", NULL, FALSE);
-		if(!AppIsExist(ExeFullName, TRUE)) {
+		if(!AppIsExist(&ExeFullName[0], TRUE)) {
 			PrintLog(L"Terminate error...\r\n", NULL, FALSE);
 		}
 		ConsoleToFile();
 		Sleep(5000);
 		if(++TerminateCount >= 5) {
-			if(!RebootOS()) {
+			if(!RebootOS(&ExeFullName[0])) {
 				PrintLog(L"Reboot error...\r\n", NULL, FALSE);
 			}
 		}
